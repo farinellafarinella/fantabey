@@ -53,7 +53,6 @@ const views = {
   account: document.getElementById("view-account"),
   lega: document.getElementById("view-lega"),
   iscrizione: document.getElementById("view-iscrizione"),
-  "crea-squadra": document.getElementById("view-crea-squadra"),
   giocatori: document.getElementById("view-giocatori"),
   squadre: document.getElementById("view-squadre"),
   admin: document.getElementById("view-admin")
@@ -185,9 +184,9 @@ function renderLeagueSelect() {
   if (state.leagues.length === 0) {
     const option = document.createElement("option");
     option.value = "";
-    option.textContent = "Nessuna lega";
+    option.textContent = "Nessun torneo";
     select.appendChild(option);
-    note.textContent = "Crea una lega per iniziare.";
+    note.textContent = "Crea un torneo per iniziare.";
     return;
   }
   state.leagues.forEach((league) => {
@@ -199,9 +198,9 @@ function renderLeagueSelect() {
   if (state.currentLeagueId) {
     select.value = state.currentLeagueId;
     const current = state.leagues.find((l) => l.id === state.currentLeagueId);
-    note.textContent = current ? `Lega attiva: ${current.name}` : "Seleziona una lega.";
+    note.textContent = current ? `Torneo attivo: ${current.name}` : "Seleziona un torneo.";
   } else {
-    note.textContent = "Seleziona una lega.";
+    note.textContent = "Seleziona un torneo.";
   }
 }
 
@@ -210,7 +209,7 @@ function renderCompetitorPicker() {
   const note = document.getElementById("team-picker-note");
   picker.innerHTML = "";
   if (!state.currentLeagueId) {
-    note.textContent = "Seleziona una lega per vedere i giocatori.";
+    note.textContent = "Seleziona un torneo per vedere i giocatori.";
     return;
   }
   if (state.competitors.length === 0) {
@@ -340,13 +339,39 @@ function renderAdminArea() {
     adminArea.setAttribute("aria-hidden", "true");
     adminArea.style.opacity = 0.4;
     adminArea.style.pointerEvents = "none";
-    note.textContent = "Seleziona una lega per usare i punteggi.";
+    note.textContent = "Seleziona un torneo per usare i punteggi.";
   } else {
     adminArea.setAttribute("aria-hidden", "true");
     adminArea.style.opacity = 0.4;
     adminArea.style.pointerEvents = "none";
     note.textContent = "Admin bloccato.";
   }
+}
+
+function renderTournamentsList() {
+  const list = document.getElementById("tournaments-list");
+  const note = document.getElementById("league-delete-note");
+  list.innerHTML = "";
+  note.textContent = "";
+  if (state.leagues.length === 0) {
+    list.innerHTML = "<p class=\"muted\">Nessun torneo creato.</p>";
+    return;
+  }
+  state.leagues.forEach((league) => {
+    const item = document.createElement("div");
+    item.className = "list-item";
+    item.innerHTML = `
+      <div>
+        <strong>${league.name}</strong>
+        <div class="muted">${league.id}</div>
+      </div>
+      <button class="btn btn-ghost" data-delete="${league.id}">Elimina</button>
+    `;
+    list.appendChild(item);
+  });
+  list.querySelectorAll("button[data-delete]").forEach((btn) => {
+    btn.addEventListener("click", () => handleDeleteLeague(btn.dataset.delete));
+  });
 }
 
 async function fetchLeagues() {
@@ -518,7 +543,7 @@ async function handleLeagueCreate(event) {
   state.currentLeagueId = docRef.id;
   saveUiState();
   form.reset();
-  note.textContent = "Lega creata.";
+  note.textContent = "Torneo creato.";
   await fetchLeagues();
   await loadLeagueData();
   refreshAll();
@@ -540,7 +565,7 @@ async function handleCompetitor(event) {
     return;
   }
   if (!state.currentLeagueId) {
-    note.textContent = "Seleziona una lega.";
+    note.textContent = "Seleziona un torneo.";
     return;
   }
   const nick = event.currentTarget.playerNick.value.trim();
@@ -572,12 +597,12 @@ async function handleTeamCreate(event) {
     return;
   }
   if (!state.currentLeagueId) {
-    note.textContent = "Seleziona una lega.";
+    note.textContent = "Seleziona un torneo.";
     return;
   }
   const existing = state.teams.some((team) => team.managerId === state.currentUser.uid);
   if (existing) {
-    note.textContent = "Hai già registrato una squadra per questa lega.";
+    note.textContent = "Hai già registrato una squadra per questo torneo.";
     return;
   }
   const teamName = event.currentTarget.teamName.value.trim();
@@ -630,7 +655,7 @@ async function handleScore(event) {
 
 async function handleResetScores() {
   if (!state.adminUnlocked || !state.currentLeagueId) return;
-  const confirmed = confirm("Vuoi azzerare TUTTI i punteggi e gli storici della lega?");
+  const confirmed = confirm("Vuoi azzerare TUTTI i punteggi e gli storici del torneo?");
   if (!confirmed) return;
   const leagueRef = doc(db, "leagues", state.currentLeagueId);
   const competitorsSnap = await getDocs(collection(leagueRef, "competitors"));
@@ -641,20 +666,20 @@ async function handleResetScores() {
   refreshAll();
 }
 
-async function handleDeleteLeague() {
+async function handleDeleteLeague(leagueId) {
   const note = document.getElementById("league-delete-note");
   if (!state.adminUnlocked) {
     note.textContent = "Admin bloccato.";
     return;
   }
-  if (!state.currentLeagueId) {
-    note.textContent = "Seleziona una lega.";
+  if (!leagueId) {
+    note.textContent = "Seleziona un torneo.";
     return;
   }
-  const confirmed = confirm("Eliminare la lega attiva? Verranno cancellati squadre e giocatori.");
+  const confirmed = confirm("Eliminare il torneo? Verranno cancellati squadre e giocatori.");
   if (!confirmed) return;
 
-  const leagueRef = doc(db, "leagues", state.currentLeagueId);
+  const leagueRef = doc(db, "leagues", leagueId);
   const competitorsSnap = await getDocs(collection(leagueRef, "competitors"));
   const teamsSnap = await getDocs(collection(leagueRef, "teams"));
   const deletes = [];
@@ -663,12 +688,14 @@ async function handleDeleteLeague() {
   await Promise.all(deletes);
   await deleteDoc(leagueRef);
 
-  state.currentLeagueId = null;
+  if (state.currentLeagueId === leagueId) {
+    state.currentLeagueId = null;
+  }
   saveUiState();
   await fetchLeagues();
   await loadLeagueData();
   refreshAll();
-  note.textContent = "Lega eliminata.";
+  note.textContent = "Torneo eliminato.";
 }
 
 function setupTabs() {
@@ -687,7 +714,6 @@ function setupEvents() {
   document.getElementById("team-form").addEventListener("submit", handleTeamCreate);
   document.getElementById("score-form").addEventListener("submit", handleScore);
   document.getElementById("reset-scores").addEventListener("click", handleResetScores);
-  document.getElementById("delete-league").addEventListener("click", handleDeleteLeague);
 
   const adminPlayerSelect = document.getElementById("admin-player-select");
   adminPlayerSelect.addEventListener("change", (event) => updateRoundOptions(event.target.value));
@@ -715,6 +741,7 @@ function refreshAll() {
   renderTeamsList();
   renderAdminPlayers();
   renderAdminArea();
+  renderTournamentsList();
 }
 
 async function init() {
