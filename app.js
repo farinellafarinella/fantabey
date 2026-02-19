@@ -155,11 +155,14 @@ function renderRules() {
 
 function renderAccount() {
   const box = document.getElementById("account-status");
+  const headerUser = document.getElementById("header-user");
   if (!state.currentUser) {
     box.innerHTML = `<p class="muted">Nessun utente connesso.</p>`;
+    headerUser.textContent = "";
     return;
   }
   const name = state.currentUser.displayName || state.currentUser.email;
+  headerUser.textContent = `Ciao, ${name}`;
   box.innerHTML = `
     <div class="list-item">
       <div>
@@ -460,29 +463,41 @@ async function applyScore({ playerId, rules, meta, fullMetaWin, note, outcome, r
 
 async function handleRegister(event) {
   event.preventDefault();
+  const note = document.getElementById("register-note");
   const form = event.currentTarget;
   const displayName = form.displayName.value.trim();
   const email = form.email.value.trim();
   const password = form.password.value.trim();
   if (!displayName || !email || !password) return;
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
-  await updateProfile(credential.user, { displayName });
-  await setDoc(doc(db, "users", credential.user.uid), {
-    displayName,
-    email,
-    createdAt: serverTimestamp()
-  });
-  form.reset();
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(credential.user, { displayName });
+    await setDoc(doc(db, "users", credential.user.uid), {
+      displayName,
+      email,
+      createdAt: serverTimestamp()
+    });
+    form.reset();
+    note.textContent = "Registrazione completata.";
+  } catch (error) {
+    note.textContent = "Errore registrazione. Controlla email e password.";
+  }
 }
 
 async function handleLogin(event) {
   event.preventDefault();
+  const note = document.getElementById("login-note");
   const form = event.currentTarget;
   const email = form.email.value.trim();
   const password = form.password.value.trim();
   if (!email || !password) return;
-  await signInWithEmailAndPassword(auth, email, password);
-  form.reset();
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    form.reset();
+    note.textContent = "Login effettuato.";
+  } catch (error) {
+    note.textContent = "Credenziali errate.";
+  }
 }
 
 async function handleLeagueCreate(event) {
