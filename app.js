@@ -198,7 +198,12 @@ function renderLeagueSelect() {
   if (state.currentLeagueId) {
     select.value = state.currentLeagueId;
     const current = state.leagues.find((l) => l.id === state.currentLeagueId);
-    note.textContent = current ? `Torneo attivo: ${current.name}` : "Seleziona un torneo.";
+    if (current) {
+      const status = current.startedAt ? " (iniziato)" : "";
+      note.textContent = `Torneo attivo: ${current.name}${status}`;
+    } else {
+      note.textContent = "Seleziona un torneo.";
+    }
   } else {
     note.textContent = "Seleziona un torneo.";
   }
@@ -232,6 +237,11 @@ function renderCompetitorPicker() {
   picker.innerHTML = "";
   if (!state.currentLeagueId) {
     note.textContent = "Seleziona un torneo per vedere i giocatori.";
+    return;
+  }
+  const league = state.leagues.find((l) => l.id === state.currentLeagueId);
+  if (league?.startedAt) {
+    note.textContent = "Torneo iniziato: non si possono più creare squadre.";
     return;
   }
   if (state.competitors.length === 0) {
@@ -382,17 +392,24 @@ function renderTournamentsList() {
   state.leagues.forEach((league) => {
     const item = document.createElement("div");
     item.className = "list-item";
+    const started = league.startedAt ? "Iniziato" : "Aperto";
     item.innerHTML = `
       <div>
         <strong>${league.name}</strong>
-        <div class="muted">${league.id}</div>
+        <div class="muted">${league.id} · ${started}</div>
       </div>
-      <button class="btn btn-ghost" data-delete="${league.id}">Elimina</button>
+      <div class="admin-actions">
+        <button class="btn btn-ghost" data-start="${league.id}">${league.startedAt ? "Riapri" : "Inizia"}</button>
+        <button class="btn btn-ghost" data-delete="${league.id}">Elimina</button>
+      </div>
     `;
     list.appendChild(item);
   });
   list.querySelectorAll("button[data-delete]").forEach((btn) => {
     btn.addEventListener("click", () => handleDeleteLeague(btn.dataset.delete));
+  });
+  list.querySelectorAll("button[data-start]").forEach((btn) => {
+    btn.addEventListener("click", () => handleToggleTournament(btn.dataset.start));
   });
 }
 
@@ -411,7 +428,18 @@ async function loadLeagueData() {
   const competitorsSnap = await getDocs(collection(leagueRef, "competitors"));
   state.competitors = competitorsSnap.docs.map((docSnap) => docSnap.data());
   const teamsSnap = await getDocs(collection(leagueRef, "teams"));
-  state.teams = teamsSnap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+  const rawTeams = teamsSnap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+  const byManager = new Map();
+  rawTeams.forEach((team) => {
+    const key = team.managerId || team.id;
+    const existing = byManager.get(key);
+    const existingTs = existing?.createdAt?.seconds || 0;
+    const teamTs = team?.createdAt?.seconds || 0;
+    if (!existing || teamTs >= existingTs) {
+      byManager.set(key, team);
+    }
+  });
+  state.teams = Array.from(byManager.values());
 }
 
 function updateRoundOptions(playerId) {
@@ -618,42 +646,62 @@ async function handleCompetitor(event) {
 async function handleTeamCreate(event) {
   event.preventDefault();
   const note = document.getElementById("team-picker-note");
+  const submitBtn = event.currentTarget.querySelector("button[type='submit']");
+  if (submitBtn?.dataset.submitting === "true") return;
+  if (submitBtn) submitBtn.dataset.submitting = "true";
   if (!state.currentUser) {
     note.textContent = "Devi accedere per creare una squadra.";
+    if (submitBtn) submitBtn.dataset.submitting = "false";
     return;
   }
   if (!state.currentLeagueId) {
     note.textContent = "Seleziona un torneo.";
+    if (submitBtn) submitBtn.dataset.submitting = "false";
+    return;
+  }
+  const league = state.leagues.find((l) => l.id === state.currentLeagueId);
+  if (league?.startedAt) {
+    note.textContent = "Torneo iniziato: non puoi creare nuove squadre.";
+    if (submitBtn) submitBtn.dataset.submitting = "false";
     return;
   }
   const existing = state.teams.some((team) => team.managerId === state.currentUser.uid);
   if (existing) {
     note.textContent = "Hai già registrato una squadra per questo torneo.";
+    if (submitBtn) submitBtn.dataset.submitting = "false";
     return;
   }
   const teamName = event.currentTarget.teamName.value.trim();
-  if (!teamName) return;
+  if (!teamName) {
+    if (submitBtn) submitBtn.dataset.submitting = "false";
+    return;
+  }
   const selected = Array.from(document.querySelectorAll(".pick.selected")).map((btn) => btn.dataset.playerId);
   if (selected.length !== 3) {
     note.textContent = "Devi selezionare esattamente 3 giocatori.";
+    if (submitBtn) submitBtn.dataset.submitting = "false";
     return;
   }
 
   const leagueRef = doc(db, "leagues", state.currentLeagueId);
-  await addDoc(collection(leagueRef, "teams"), {
-    teamName,
-    managerId: state.currentUser.uid,
-    managerName: state.currentUser.displayName || state.currentUser.email,
-    picks: selected,
-    points: calculateTeamPoints(selected),
-    createdAt: serverTimestamp()
-  });
+  try {
+    await addDoc(collection(leagueRef, "teams"), {
+      teamName,
+      managerId: state.currentUser.uid,
+      managerName: state.currentUser.displayName || state.currentUser.email,
+      picks: selected,
+      points: calculateTeamPoints(selected),
+      createdAt: serverTimestamp()
+    });
 
-  event.currentTarget.reset();
-  document.querySelectorAll(".pick.selected").forEach((btn) => btn.classList.remove("selected"));
-  note.textContent = "Squadra registrata.";
-  await loadLeagueData();
-  refreshAll();
+    event.currentTarget.reset();
+    document.querySelectorAll(".pick.selected").forEach((btn) => btn.classList.remove("selected"));
+    note.textContent = "Squadra registrata.";
+    await loadLeagueData();
+    refreshAll();
+  } finally {
+    if (submitBtn) submitBtn.dataset.submitting = "false";
+  }
 }
 
 async function handleScore(event) {
@@ -689,6 +737,32 @@ async function handleResetScores() {
   await Promise.all(updates);
   await loadLeagueData();
   await recalcTeams();
+  refreshAll();
+}
+
+async function handleToggleTournament(leagueId) {
+  const note = document.getElementById("league-delete-note");
+  if (!state.adminUnlocked) {
+    note.textContent = "Admin bloccato.";
+    return;
+  }
+  if (!leagueId) {
+    note.textContent = "Seleziona un torneo.";
+    return;
+  }
+  const league = state.leagues.find((l) => l.id === leagueId);
+  const leagueRef = doc(db, "leagues", leagueId);
+  if (league?.startedAt) {
+    const confirmed = confirm("Riaprire il torneo? Sarà di nuovo possibile creare squadre.");
+    if (!confirmed) return;
+    await updateDoc(leagueRef, { startedAt: null });
+  } else {
+    const confirmed = confirm("Iniziare il torneo? Non sarà più possibile creare squadre.");
+    if (!confirmed) return;
+    await updateDoc(leagueRef, { startedAt: serverTimestamp() });
+  }
+  await fetchLeagues();
+  await loadLeagueData();
   refreshAll();
 }
 
