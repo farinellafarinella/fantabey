@@ -12,7 +12,7 @@
       <div class="logo">FB</div>
       <div>
         <h1>FantaBey</h1>
-        <p class="subtitle">FantaBeyblade per i nostri tornei local</p>
+        <p class="subtitle">Fantacalcio Beyblade per tornei local</p>
       </div>
     </div>
     <div class="header-user" id="header-user"></div>
@@ -119,6 +119,10 @@
       <div class="card">
         <h3>Registrati come giocatore</h3>
         <form id="competitor-form">
+          <label>
+            Seleziona torneo
+            <select id="competitor-league-select" name="tournamentId"></select>
+          </label>
           <label>
             Nickname (opzionale)
             <input type="text" name="playerNick" placeholder="Es. Dragoon" />
@@ -228,7 +232,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>FantaBey — punti aggiornati in 24h.</p>
+    <p>FantaBey — punti aggiornati in tempo reale.</p>
   </footer>
 
   <script type="module" src="app.js"></script>
