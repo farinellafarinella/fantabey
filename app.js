@@ -204,6 +204,28 @@ function renderLeagueSelect() {
   }
 }
 
+function renderCompetitorLeagueSelect() {
+  const select = document.getElementById("competitor-league-select");
+  if (!select) return;
+  select.innerHTML = "";
+  if (state.leagues.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Nessun torneo";
+    select.appendChild(option);
+    return;
+  }
+  state.leagues.forEach((league) => {
+    const option = document.createElement("option");
+    option.value = league.id;
+    option.textContent = league.name;
+    select.appendChild(option);
+  });
+  if (state.currentLeagueId) {
+    select.value = state.currentLeagueId;
+  }
+}
+
 function renderCompetitorPicker() {
   const picker = document.getElementById("team-picker");
   const note = document.getElementById("team-picker-note");
@@ -564,7 +586,9 @@ async function handleCompetitor(event) {
     note.textContent = "Devi accedere per candidarti.";
     return;
   }
-  if (!state.currentLeagueId) {
+  const tournamentSelect = document.getElementById("competitor-league-select");
+  const tournamentId = tournamentSelect?.value || state.currentLeagueId;
+  if (!tournamentId) {
     note.textContent = "Seleziona un torneo.";
     return;
   }
@@ -572,7 +596,7 @@ async function handleCompetitor(event) {
   const displayBase = state.currentUser.displayName || state.currentUser.email;
   const display = nick ? `${displayBase} (${nick})` : displayBase;
 
-  const leagueRef = doc(db, "leagues", state.currentLeagueId);
+  const leagueRef = doc(db, "leagues", tournamentId);
   const competitorRef = doc(leagueRef, "competitors", state.currentUser.uid);
   const snap = await getDoc(competitorRef);
   const current = snap.exists() ? snap.data() : null;
@@ -585,7 +609,9 @@ async function handleCompetitor(event) {
   });
   note.textContent = "Registrazione completata.";
   event.currentTarget.reset();
-  await loadLeagueData();
+  if (state.currentLeagueId === tournamentId) {
+    await loadLeagueData();
+  }
   refreshAll();
 }
 
@@ -736,6 +762,7 @@ function setupEvents() {
 function refreshAll() {
   renderAccount();
   renderLeagueSelect();
+  renderCompetitorLeagueSelect();
   renderCompetitorPicker();
   renderPlayersList();
   renderTeamsList();
