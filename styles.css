@@ -30,6 +30,12 @@ body {
   z-index: 10;
 }
 
+.header-user {
+  margin-top: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
 .brand {
   display: flex;
   gap: 16px;
