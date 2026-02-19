@@ -11,7 +11,7 @@
     <div class="brand">
       <div class="logo">FB</div>
       <div>
-        <h1>FantaBey</h1>x
+        <h1>FantaBey</h1>
         <p class="subtitle">FantaBeyblade per i nostri tornei local</p>
       </div>
     </div>
@@ -19,9 +19,8 @@
     <nav class="tabs" aria-label="Sezioni">
       <button class="tab" data-view="regole">Regolamento</button>
       <button class="tab" data-view="account">Account</button>
-      <button class="tab" data-view="lega">Lega</button>
+      <button class="tab" data-view="lega">Torneo</button>
       <button class="tab" data-view="iscrizione">Iscrizione</button>
-      <button class="tab" data-view="crea-squadra">Crea Squadra</button>
       <button class="tab" data-view="giocatori">Giocatori</button>
       <button class="tab" data-view="squadre">Squadre</button>
       <button class="tab" data-view="admin">Admin</button>
@@ -86,15 +85,32 @@
     </section>
 
     <section class="view" id="view-lega" hidden>
-      <h2>Lega</h2>
-      <div class="card">
-        <h3>Seleziona lega</h3>
-        <label>
-          Lega attiva
-          <select id="league-select"></select>
-        </label>
-        <button id="league-set" class="btn">Usa questa lega</button>
-        <p class="form-note" id="league-note"></p>
+      <h2>Torneo</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Seleziona torneo</h3>
+          <label>
+            Torneo attivo
+            <select id="league-select"></select>
+          </label>
+          <button id="league-set" class="btn">Usa questo torneo</button>
+          <p class="form-note" id="league-note"></p>
+        </div>
+        <div class="card">
+          <h3>Crea la tua squadra</h3>
+          <form id="team-form">
+            <label>
+              Nome squadra
+              <input type="text" name="teamName" required placeholder="Es. Cobra Gold" />
+            </label>
+            <label>
+              Scegli 3 giocatori
+              <div class="pick-list" id="team-picker"></div>
+            </label>
+            <button type="submit" class="btn">Registra squadra</button>
+            <p class="form-note" id="team-picker-note"></p>
+          </form>
+        </div>
       </div>
     </section>
 
@@ -107,26 +123,8 @@
             Nickname (opzionale)
             <input type="text" name="playerNick" placeholder="Es. Dragoon" />
           </label>
-          <button type="submit" class="btn">Candidati in lega</button>
+          <button type="submit" class="btn">Candidati nel torneo</button>
           <p class="form-note" id="competitor-note"></p>
-        </form>
-      </div>
-    </section>
-
-    <section class="view" id="view-crea-squadra" hidden>
-      <h2>Crea la tua squadra</h2>
-      <div class="card">
-        <form id="team-form">
-          <label>
-            Nome squadra
-            <input type="text" name="teamName" required placeholder="Es. Cobra Gold" />
-          </label>
-          <label>
-            Scegli 3 giocatori
-            <div class="pick-list" id="team-picker"></div>
-          </label>
-          <button type="submit" class="btn">Registra squadra</button>
-          <p class="form-note" id="team-picker-note"></p>
         </form>
       </div>
     </section>
@@ -160,17 +158,18 @@
         <p class="form-note" id="admin-lock-note">Admin bloccato.</p>
       </div>
       <div class="card">
-        <h3>Crea lega</h3>
+        <h3>Crea torneo</h3>
         <form id="league-form">
           <label>
-            Nome lega
+            Nome torneo
             <input type="text" name="leagueName" required placeholder="Es. Entropy Cup" />
           </label>
-          <button type="submit" class="btn">Crea lega</button>
+          <button type="submit" class="btn">Crea torneo</button>
           <p class="form-note" id="league-create-note"></p>
         </form>
-        <div class="admin-actions" style="margin-top: 12px;">
-          <button type="button" id="delete-league" class="btn btn-ghost">Elimina lega attiva</button>
+        <div class="card" style="margin-top: 12px;">
+          <h4>Gestisci tornei</h4>
+          <div id="tournaments-list" class="list"></div>
           <p class="form-note" id="league-delete-note"></p>
         </div>
       </div>
@@ -223,7 +222,7 @@
             </div>
           </form>
         </div>
-        <p class="form-note" id="admin-score-note">Seleziona una lega e sblocca admin.</p>
+        <p class="form-note" id="admin-score-note">Seleziona un torneo e sblocca admin.</p>
       </div>
     </section>
   </main>
