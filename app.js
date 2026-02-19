@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, updateProfile, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, where, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, orderBy, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDNG56-mS2ccafYesJKVQKkQQaJWZXl7gM",
@@ -641,6 +641,36 @@ async function handleResetScores() {
   refreshAll();
 }
 
+async function handleDeleteLeague() {
+  const note = document.getElementById("league-delete-note");
+  if (!state.adminUnlocked) {
+    note.textContent = "Admin bloccato.";
+    return;
+  }
+  if (!state.currentLeagueId) {
+    note.textContent = "Seleziona una lega.";
+    return;
+  }
+  const confirmed = confirm("Eliminare la lega attiva? Verranno cancellati squadre e giocatori.");
+  if (!confirmed) return;
+
+  const leagueRef = doc(db, "leagues", state.currentLeagueId);
+  const competitorsSnap = await getDocs(collection(leagueRef, "competitors"));
+  const teamsSnap = await getDocs(collection(leagueRef, "teams"));
+  const deletes = [];
+  competitorsSnap.docs.forEach((docSnap) => deletes.push(deleteDoc(docSnap.ref)));
+  teamsSnap.docs.forEach((docSnap) => deletes.push(deleteDoc(docSnap.ref)));
+  await Promise.all(deletes);
+  await deleteDoc(leagueRef);
+
+  state.currentLeagueId = null;
+  saveUiState();
+  await fetchLeagues();
+  await loadLeagueData();
+  refreshAll();
+  note.textContent = "Lega eliminata.";
+}
+
 function setupTabs() {
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => showView(tab.dataset.view));
@@ -657,6 +687,7 @@ function setupEvents() {
   document.getElementById("team-form").addEventListener("submit", handleTeamCreate);
   document.getElementById("score-form").addEventListener("submit", handleScore);
   document.getElementById("reset-scores").addEventListener("click", handleResetScores);
+  document.getElementById("delete-league").addEventListener("click", handleDeleteLeague);
 
   const adminPlayerSelect = document.getElementById("admin-player-select");
   adminPlayerSelect.addEventListener("change", (event) => updateRoundOptions(event.target.value));
